@@ -43,15 +43,19 @@ elif option == "Нарисовать на холсте":
     if model_type_key == "digits":
         st.write("Нарисуйте цифру:")
         stroke_w = 20
+        stroke_c = "white"
+        bg_c = "black"
     else:
         st.write("Попробуйте нарисовать:")
         stroke_w = 10
+        stroke_c = "black"
+        bg_c = "white"
         
     canvas_result = st_canvas(
-        fill_color="white",
+        fill_color=bg_c,
         stroke_width=stroke_w,
-        stroke_color="black",
-        background_color="white",
+        stroke_color=stroke_c,
+        background_color=bg_c,
         width=400,
         height=400,
         drawing_mode="freedraw",
@@ -61,7 +65,9 @@ elif option == "Нарисовать на холсте":
     if canvas_result.image_data is not None:
         image_data = canvas_result.image_data
         image = Image.fromarray(image_data.astype('uint8'), 'RGBA')
-        background = Image.new('RGB', image.size, (255, 255, 255))
+        # Создаем фон, чтобы исключить прозрачность (черный для цифр, белый для объектов)
+        bg_color = (0, 0, 0) if model_type_key == "digits" else (255, 255, 255)
+        background = Image.new('RGB', image.size, bg_color)
         background.paste(image, mask=image.split()[3]) 
         uploaded_image = background
 
