@@ -6,12 +6,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 from streamlit_drawable_canvas import st_canvas
 
-st.set_page_config(page_title="Классификация изображений", layout="wide")
+st.set_page_config(page_title="Мультимодельная классификация", layout="wide")
+st.title("Практическая работа №10: Демонстрация моделей")
 
-st.title("Практическая работа №10: Демонстрация модели классификации")
+# API_URL = "http://localhost:7860/predict/" # Для локального тестирования
+API_URL = "https://task10-supv.onrender.com/predict/" # После деплоя
 
-# Используйте этот URL локально или замените на Render.com/HuggingFace после деплоя
-API_URL = "https://task10-supv.onrender.com/predict/"
+st.sidebar.header("Настройки")
+model_choice = st.sidebar.selectbox(
+    "Выберите модель для задачи:",
+    ("Классификация изображений (7 классов)", "Классификация цифр (MNIST)")
+)
+
+# Переменная 'images' или 'digits', которая будет передаваться в API
+model_type_key = "images" if "изображений" in model_choice else "digits"
+
+# Меняем инструкцию на основе выбранной модели
+st.write(f"### Текущая задача: {model_choice}")
+if model_type_key == "images":
+    st.info("Классификация объектов: bike, cars, cats, dogs, flowers, horses, human.")
+else:
+    st.info("Распознавание рукописных цифр: от 0 до 9.")
 
 option = st.radio("Выберите способ ввода:", ("Загрузить файл", "Нарисовать на холсте"))
 
@@ -24,69 +39,86 @@ if option == "Загрузить файл":
         st.image(uploaded_image, caption="Загруженное фото", width=300)
 
 elif option == "Нарисовать на холсте":
-    # Холст для рисования (идеально для MNIST / чисел)
-    st.write("Нарисуйте объект/число по центру:")
+    # Меняем текст и кисть в зависимости от модели
+    if model_type_key == "digits":
+        st.write("Нарисуйте цифру по центру холста (для MNIST обычно рисуют черным по белому):")
+        stroke_w = 20 # Для цифр кисть потолще выглядит лучше при сжатии до 28x28
+    else:
+        st.write("Попробуйте нарисовать цветок, человека или лицо:")
+        stroke_w = 10
+        
     canvas_result = st_canvas(
         fill_color="white",
-        stroke_width=15,
+        stroke_width=stroke_w,
         stroke_color="black",
         background_color="white",
-        width=280,
-        height=280,
+        width=400,
+        height=400,
         drawing_mode="freedraw",
-        key="canvas",
+        key=f"canvas_{model_type_key}",
     )
+    
     if canvas_result.image_data is not None:
-        # Конвертация numpy массива из canvas в PIL Image
-        uploaded_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+        image_data = canvas_result.image_data
+        image = Image.fromarray(image_data.astype('uint8'), 'RGBA')
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        background.paste(image, mask=image.split()[3]) 
+        uploaded_image = background
 
 
 if uploaded_image:
     if st.button("Отправить в API"):
-        with st.spinner("⏳ Обработка на сервере..."):
+        with st.spinner(f"⏳ Обработка на сервере ({model_type_key})..."):
             try:
-                # Преобразование изображения в байты для отправки
                 img_byte_arr = io.BytesIO()
-                # Для canvas может быть RGBA, сохраним в PNG
-                if uploaded_image.mode in ("RGBA", "P"):
+                if uploaded_image.mode != "RGB":
                     uploaded_image = uploaded_image.convert("RGB")
                     
-                uploaded_image.save(img_byte_arr, format='PNG')
+                uploaded_image.save(img_byte_arr, format='JPEG') 
                 img_byte_arr = img_byte_arr.getvalue()
                 
-                # Отправка POST запроса к FastAPI бэкенду
-                files = {'file': ('image.png', img_byte_arr, 'image/png')}
-                response = requests.post(API_URL, files=files)
+                # В FastAPI теперь нужно передавать файл и form-data!
+                files = {'file': ('image.jpg', img_byte_arr, 'image/jpeg')}
+                data = {'model_type': model_type_key} # Сообщаем серверу какую модель грузить
+                
+                response = requests.post(API_URL, files=files, data=data)
                 
                 if response.status_code == 200:
                     result = response.json()
                     st.success("✅ Успешно классифицировано!")
                     
-                    # Извлечение результатов
-                    predicted_class = result["predicted_class"]
+                    predicted_class_name = result["predicted_class_name"]
                     confidence = result["confidence"]
                     all_probs = result["all_probabilities"]
+                    returned_classes = result["classes"]
                     
-                    st.markdown(f"### **Предсказанный класс: {predicted_class}**")
+                    st.markdown(f"### **Предсказанный класс: {predicted_class_name}**")
                     st.markdown(f"**Уверенность:** {confidence * 100:.2f}%")
                     
-                    # Визуализация вероятностей
-                    st.markdown("#### Распределение вероятностей по всем классам:")
+                    st.markdown("#### Распределение вероятностей:")
                     fig, ax = plt.subplots(figsize=(10, 4))
-                    classes = list(range(len(all_probs)))
-                    ax.bar(classes, all_probs, color='skyblue')
-                    ax.set_xticks(classes)
+                    
+                    y_pos = np.arange(len(returned_classes))
+                    ax.bar(y_pos, all_probs, color='skyblue')
+                    ax.set_xticks(y_pos)
+                    
+                    # Для изображений поворачиваем подписи, для цифр оставляем прямо
+                    rotation = 45 if model_type_key == "images" else 0
+                    ha = 'right' if model_type_key == "images" else 'center'
+                    ax.set_xticklabels(returned_classes, rotation=rotation, ha=ha)
+                    
                     ax.set_xlabel('Класс')
                     ax.set_ylabel('Вероятность')
-                    ax.set_title('Уверенность модели для каждого класса')
+                    ax.set_title(f'Уверенность модели ({model_type_key})')
                     
+                    plt.tight_layout()
                     st.pyplot(fig)
                     
                 else:
                     st.error(f"❌ Ошибка API (Статус-код: {response.status_code})")
-                    st.write(response.text)
+                    details = response.json().get("detail", response.text)
+                    st.write(f"Детали: {details}")
                     
             except requests.exceptions.ConnectionError:
                 st.error(f"❌ Не удалось подключиться к API по адресу {API_URL}.")
-                st.info("Убедитесь, что backend запущен локально (uvicorn main:app) или вы обновили API_URL.")
-
+                st.info("Убедитесь, что backend запущен (или API_URL правильный).")
