@@ -43,9 +43,11 @@ def preprocess_for_images(img: Image.Image):
     """Предобработка цветных изображений (7 классов)"""
     if img.mode != "RGB":
         img = img.convert("RGB")
-    img = img.resize((224, 224)) # Размер под вашу модель Image
-    arr = np.array(img) / 255.0  # Нормализация
-    return np.expand_dims(arr, axis=0) # Формат (1, 224, 224, 3)
+    
+    img = img.resize((224, 224)) 
+    arr = np.array(img, dtype=np.float32) 
+    
+    return np.expand_dims(arr, axis=0)
 
 def preprocess_for_digits(img: Image.Image):
     """Предобработка черно-белых цифр (MNIST)"""
