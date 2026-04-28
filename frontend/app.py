@@ -43,13 +43,13 @@ elif option == "Нарисовать на холсте":
     if model_type_key == "digits":
         st.write("Нарисуйте цифру:")
         stroke_w = 20
-        stroke_c = "white"
-        bg_c = "black"
+        stroke_c = "#FFFFFF" # Белый цвет в формате HEX
+        bg_c = "#000000"     # Черный цвет в формате HEX
     else:
         st.write("Попробуйте нарисовать:")
         stroke_w = 10
-        stroke_c = "black"
-        bg_c = "white"
+        stroke_c = "#000000" # Черный цвет в формате HEX
+        bg_c = "#FFFFFF"     # Белый цвет в формате HEX
         
     canvas_result = st_canvas(
         fill_color=bg_c,
