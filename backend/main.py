@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = "models/best_classification_model.keras"
+MODEL_PATH = "best_classification_model.keras"
 
 model = None
 try:
