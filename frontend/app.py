@@ -11,7 +11,7 @@ st.set_page_config(page_title="Классификация изображений
 st.title("Практическая работа №10: Демонстрация модели классификации")
 
 # Используйте этот URL локально или замените на Render.com/HuggingFace после деплоя
-API_URL = "http://localhost:7860/predict/"
+API_URL = "https://task10-supv.onrender.com/predict/"
 
 option = st.radio("Выберите способ ввода:", ("Загрузить файл", "Нарисовать на холсте"))
 
